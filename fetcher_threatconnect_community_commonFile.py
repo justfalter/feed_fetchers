@@ -39,15 +39,15 @@ while total_count < todo_count:
 	ilist = reports['data']['indicator']
 	for x in ilist:
 		total_count += 1
-		if x['type'] == 'Address':
+		if x['type'] == 'File':
 			tmp_list = {}
-			tmp_list['ipv4'] = x['summary']
+			tmp_list['md5'] = x['summary']
 			tmp_list['webLink'] = x['webLink']
 			tmp_list['dateAdded'] = x['dateAdded']
 			toprint.append(tmp_list)
 			del tmp_list
 	
-print('ipv4,feedID,killchain,description,webLink,dateAdded')
+print('md5,feedID,killchain,description,webLink,dateAdded')
 for x in toprint:
-	print("%s,%s,%s,%s,%s,%s" % (x['ipv4'], feedID, killchain, 'ThreatConnect observed IP', x['webLink'], x['dateAdded']))
+	print("%s,%s,%s,%s,%s,%s" % (x['md5'], feedID, killchain, 'ThreatConnect observed file', x['webLink'], x['dateAdded']))
 
