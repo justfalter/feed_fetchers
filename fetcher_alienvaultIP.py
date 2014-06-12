@@ -1,30 +1,46 @@
-import requests
 import re
+from FeedFetcher import FeedRecordType, HttpHandler
 
-feedaddr = 'https://reputation.alienvault.com/reputation.generic'
-feedID = 'alienvault'
-mkey = 'fetcher_alienvault:feeddata'
-killchain = 'Reconnaissance'
+class Handler(HttpHandler):
+    mkey = 'fetcher_alienvault:feeddata'
 
-r = requests.get(feedaddr)
-splitlines = r.content.split('\n')
+    MAPPING = {
+        re.compile('C\&C'): FeedRecordType.COMMAND_AND_CONTROL,
+        re.compile('Malware'): FeedRecordType.EXPLOIT,
+        re.compile('Malicious'): FeedRecordType.DELIVERY,
+        re.compile('Spamming'): FeedRecordType.SPAMMING
+        }
 
-print('ipv4,feedID,killchain,description,type,info')
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('feedID', 'alienvault')
+        kwargs.setdefault('fields', ['ipv4','description','info'])
+        kwargs.setdefault('feedaddr', 'https://reputation.alienvault.com/reputation.generic')
+        kwargs.setdefault('mkey', 'fetcher_alienvault:feeddata')
+        super(Handler, self).__init__(*args, **kwargs)
 
-for x in splitlines:
-	x = x.strip()
-	if re.search('^#', x): continue
-	if len(x) == 0: continue
-	xlist = x.split(' # ')
-	xlist_pt2 = xlist[1].split(',')
-	if re.search('C\&C', xlist_pt2[0]):
-		print("%s,%s,%s,%s,%s" % (xlist[0], feedID, 'Command & Control', 'Alienvault nasty IPs',xlist_pt2[0]))
-	elif re.search('Malware', xlist_pt2[0]):
-		print("%s,%s,%s,%s,%s" % (xlist[0], feedID, 'Exploit', 'Alienvault nasty IPs',xlist_pt2[0]))
-	elif re.search('Malicious', xlist_pt2[0]):
-		print("%s,%s,%s,%s,%s" % (xlist[0], feedID, 'Delivery', 'Alienvault nasty IPs',xlist_pt2[0]))
-	elif re.search('Spamming', xlist_pt2[0]):
-		print("%s,%s,%s,%s,%s" % (xlist[0], feedID, 'Delivery', 'Alienvault nasty IPs',xlist_pt2[0]))
-	else:
-		print("%s,%s,%s,%s,%s" % (xlist[0], feedID, killchain, 'Alienvault nasty IPs',xlist_pt2[0]))
-	
+    def handle_line_from_feed(self, line):
+        line = line.strip()
+        if len(line) == 0: return
+        if re.search('^#', line): return
+        xlist = line.split(' # ')
+        xlist_pt2 = xlist[1].split(',')
+        ipv4 = xlist[0]
+        info = xlist_pt2[0]
+
+        record_type = FeedRecordType.RECONNAISSANCE
+        for pattern, val in self.MAPPING.items():
+            if pattern.match(info):
+                record_type = val
+                break
+
+        self.emit(record_type, {
+            'ipv4': ipv4, 
+            'description': 'Alienvault nasty IPs',
+            'info': info
+            })
+
+
+if __name__ == "__main__":
+    from FeedFetcher import CSVOutput
+    handler = Handler(output = CSVOutput())
+    handler.run()
